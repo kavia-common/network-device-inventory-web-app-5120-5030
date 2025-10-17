@@ -15,22 +15,29 @@ Setup:
 - python app.py
 
 Endpoints:
-- GET /health -> {"status":"ok","service":"FlaskBackendAPI","version":"0.1.0", "cors_origin": "...", "mongo": {"connected": true|false, "db": "inventory", "error": "...?"}}
+- GET /health -> {"status":"ok","service":"FlaskBackendAPI","version":"0.1.0","port":3001,"cors_origin":"...","mongo":{...}}
+
+Defaults and Ports:
+- Binds host 0.0.0.0 and PORT=3001 by default to satisfy preview requirements.
+- You can override PORT via environment variable.
 
 Environment variables:
-- PORT (default 5000)
+- PORT (default 3001)
 - APP_VERSION (optional)
-- CORS_ALLOW_ORIGINS (optional; defaults to allowing all via flask-cors; set to http://localhost:5173 for Vite dev)
+- CORS_ALLOW_ORIGINS (optional; defaults to allowing all via flask-cors; set to http://localhost:3000 for Vite dev)
 - SECRET_KEY (required in non-dev; example value provided in .env.example)
-- MongoDB placeholders for future CRUD functionality:
-  - MONGODB_URI
-  - MONGODB_DB_NAME
-  - MONGODB_COLLECTION_DEVICES
-  - MONGODB_COLLECTION_LOGS
+- LOG_LEVEL (default INFO)
+
+MongoDB configuration (used by health check and for future CRUD):
+- MONGODB_URI
+- MONGODB_DB_NAME
+- MONGODB_COLLECTION_DEVICES
+- MONGODB_COLLECTION_LOGS
+- Optional TLS and tuning: MONGODB_TLS, MONGODB_TLS_CA_FILE, MONGODB_CONNECT_TIMEOUT_MS, MONGODB_SOCKET_TIMEOUT_MS, MONGODB_MAX_POOL_SIZE
 
 CORS
 - flask-cors is enabled globally in app.py.
-- For local dev with Vite (React), set CORS_ALLOW_ORIGINS=http://localhost:5173 in your .env (or leave default permissive dev CORS).
+- For local dev with Vite (React), set CORS_ALLOW_ORIGINS=http://localhost:3000 in your .env (or leave default permissive dev CORS).
 
 Upgraded packages (pinned with safe upper bounds):
 - Flask >=3.0.3,<3.2
