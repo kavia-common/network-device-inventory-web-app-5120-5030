@@ -15,7 +15,7 @@ Setup:
 - python app.py
 
 Endpoints:
-- GET /health -> {"status":"ok","service":"FlaskBackendAPI","version":"0.1.0"}
+- GET /health -> {"status":"ok","service":"FlaskBackendAPI","version":"0.1.0", "cors_origin": "...", "mongo": {"connected": true|false, "db": "inventory", "error": "...?"}}
 
 Environment variables:
 - PORT (default 5000)

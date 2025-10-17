@@ -7,7 +7,8 @@ pymongo>=4.8.0,<5.0.0
 motor>=3.6.0,<4.0.0
 
 # Networking / reachability
-pythonping>=1.1.5,<2.0.0
+# Note: 1.1.4 is the latest available in this environment; upgrade later if needed
+pythonping>=1.1.4,<2.0.0
 
 # Validation and typing
 pydantic>=2.9.2,<3.0.0
