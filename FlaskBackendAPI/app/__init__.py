@@ -7,6 +7,7 @@ from flask import Flask, jsonify, request
 from flask_cors import CORS
 
 from .db import init_mongo_indexes, mongo_client, get_db
+from .sse import sse_bp
 
 # PUBLIC_INTERFACE
 def create_app() -> Flask:
@@ -58,6 +59,7 @@ def create_app() -> Flask:
 
     app.register_blueprint(devices_bp, url_prefix="/api/devices")
     app.register_blueprint(spec_bp, url_prefix="/api")
+    app.register_blueprint(sse_bp, url_prefix="/api")
 
     # Health route
     @app.get("/health")

@@ -23,7 +23,8 @@ Key backend endpoints:
 - PUT /api/devices/<id>
 - DELETE /api/devices/<id>
 - DELETE /api/devices (bulk: { "ids": ["..."] })
-- POST /api/devices/<id>/ping (stub)
+- POST /api/devices/<id>/ping
+- GET /api/devices/stream (SSE)
 
 Environment variables (set in FlaskBackendAPI/.env):
 - MONGODB_URI, MONGODB_DB_NAME (required for DB ops)

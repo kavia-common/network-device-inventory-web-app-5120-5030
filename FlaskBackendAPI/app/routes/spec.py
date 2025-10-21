@@ -57,8 +57,15 @@ def openapi_spec():
             },
             "/api/devices/{id}/ping": {
                 "post": {
-                    "summary": "Ping device (stubbed)",
+                    "summary": "Ping device",
+                    "description": "Ping a device using ICMP (pythonping) and return status/latency metrics.",
                     "parameters": [{"name": "id", "in": "path", "required": True}],
+                }
+            },
+            "/api/devices/stream": {
+                "get": {
+                    "summary": "Device status SSE stream",
+                    "description": "Server-Sent Events stream with event: deviceStatus and JSON payload on ping completion."
                 }
             },
             "/health": {

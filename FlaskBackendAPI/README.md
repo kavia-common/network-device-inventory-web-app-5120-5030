@@ -10,7 +10,7 @@ Setup:
 - pip install -r requirements.txt
 3) Configure environment
 - cp .env.example .env
-- Edit .env as needed (PORT, APP_VERSION, CORS_ALLOW_ORIGINS, SECRET_KEY, Mongo settings)
+- Edit .env as needed (PORT, APP_VERSION, CORS_ALLOW_ORIGINS, SECRET_KEY, Mongo settings, PING_* settings)
 4) Run
 - python app.py
 
@@ -23,7 +23,40 @@ Core Endpoints:
 - PUT /api/devices/<id>
 - DELETE /api/devices/<id>
 - DELETE /api/devices   (bulk delete: { "ids": ["..."] })
-- POST /api/devices/<id>/ping (stub)
+- POST /api/devices/<id>/ping (ICMP via pythonping)
+- GET /api/devices/stream (SSE: deviceStatus events)
+
+Ping endpoint:
+- POST /api/devices/<id>/ping
+  - Looks up the device by MongoDB _id and reads its ipAddress.
+  - Performs ICMP echo using pythonping with env-configured parameters.
+  - Returns JSON:
+    {
+      "status": "online" | "offline",
+      "rttMs": <float|null>,
+      "sent": <int>,
+      "received": <int>,
+      "loss": <float>   // percentage 0..100
+    }
+  - 404 if device not found; 400 if invalid id; 501 if PING_ENABLED=false.
+
+SSE status stream:
+- GET /api/devices/stream
+  - Server-Sent Events stream that emits an event after each ping completes.
+  - Event name: deviceStatus
+  - Headers: text/event-stream, Cache-Control: no-cache, Connection: keep-alive
+  - Example payload (event data):
+    {
+      "type": "deviceStatus",
+      "id": "<deviceId>",
+      "ipAddress": "192.168.1.10",
+      "status": "online"|"offline",
+      "rttMs": 23.5|null,
+      "sent": 2,
+      "received": 2,
+      "loss": 0.0,
+      "timestamp": "2024-01-01T12:00:00Z"
+    }
 
 Validation:
 - Required: deviceName, ipAddress
@@ -56,6 +89,12 @@ Environment variables:
 - MONGODB_DB_NAME
 - MONGODB_COLLECTION_DEVICES (default devices)
 - Optional TLS/tuning: MONGODB_TLS, MONGODB_TLS_CA_FILE, MONGODB_CONNECT_TIMEOUT_MS, MONGODB_SOCKET_TIMEOUT_MS, MONGODB_MAX_POOL_SIZE
+
+Ping configuration:
+- PING_ENABLED (default true): if false, POST /api/devices/<id>/ping returns 501 Not Implemented
+- PING_COUNT (default 2): number of echo requests sent
+- PING_TIMEOUT_MS (default 800): per-request timeout in milliseconds
+- PING_TTL (default 64): IP TTL for outgoing pings
 
 CORS
 - Enabled for /api/* routes; configure CORS_ALLOW_ORIGINS.

@@ -257,12 +257,111 @@ def bulk_delete():
 @devices_bp.post("/<id>/ping")
 def ping_device(id: str):
     """
-    Ping device stub.
+    Ping a device using pythonping and return status/latency metrics.
 
     Summary:
         POST /api/devices/<id>/ping
     Returns:
-        200 with stubbed response
+        200 with JSON:
+        {
+            "status": "online"|"offline",
+            "rttMs": <float|null>,
+            "sent": <int>,
+            "received": <int>,
+            "loss": <float>,  # 0..100
+        }
+        404 if device not found
+        400 if invalid id
+        501 if ping is disabled via env
     """
-    # For now, do not implement reachability; just return stub
-    return jsonify({"status": "unknown", "message": "not implemented yet"}), 200
+    import os
+    from datetime import datetime
+
+    try:
+        from pythonping import ping as py_ping  # lazy import
+    except Exception as e:
+        # If library missing or import fails unexpectedly, surface server error
+        logger.exception("pythonping import error")
+        return jsonify({"error": "Server error", "details": str(e)}), 500
+
+    # Env configuration with defaults
+    ping_enabled = (os.getenv("PING_ENABLED", "true") or "true").lower() == "true"
+    if not ping_enabled:
+        return (
+            jsonify({"error": "Not Implemented", "details": "Ping is disabled by configuration (PING_ENABLED=false)."}),
+            501,
+        )
+
+    try:
+        col = get_devices_collection()
+        doc = col.find_one({"_id": _oid(id)})
+        if not doc:
+            return jsonify({"error": "Not found"}), 404
+        ip = str(doc.get("ipAddress") or "").strip()
+        if not ip:
+            return jsonify({"error": "Device has no ipAddress"}), 422
+    except ValueError:
+        return jsonify({"error": "Invalid id"}), 400
+    except PyMongoError as e:
+        logger.exception("Ping device DB error")
+        return jsonify({"error": "Database error", "details": str(e)}), 500
+
+    count = max(1, int(os.getenv("PING_COUNT", "2")))
+    timeout_ms = max(1, int(os.getenv("PING_TIMEOUT_MS", "800")))
+    ttl = max(1, int(os.getenv("PING_TTL", "64")))
+    timeout_sec = timeout_ms / 1000.0
+
+    sent = count
+    received = 0
+    avg_rtt_ms = None
+    loss_pct = 100.0
+    status = "offline"
+
+    try:
+        result = py_ping(ip, count=count, timeout=timeout_sec, ttl=ttl, verbose=False, size=56)
+        # pythonping ResponseList provides stats
+        rtts_ms = [resp.time_elapsed_ms for resp in result._responses if getattr(resp, "success", False)]
+        received = len(rtts_ms)
+        loss_pct = round((1 - (received / float(sent))) * 100.0, 2)
+        if received > 0:
+            avg_rtt_ms = round(sum(rtts_ms) / len(rtts_ms), 2)
+            status = "online"
+        else:
+            avg_rtt_ms = None
+            status = "offline"
+    except Exception as e:
+        # Treat any exception as offline; include detail
+        logger.warning("Ping error for %s: %s", ip, e)
+        avg_rtt_ms = None
+        received = 0
+        loss_pct = 100.0
+        status = "offline"
+
+    payload = {
+        "status": status,
+        "rttMs": avg_rtt_ms,
+        "sent": sent,
+        "received": received,
+        "loss": loss_pct,
+    }
+
+    # Emit SSE event for subscribers
+    try:
+        from ..sse import sse_publish  # local import to avoid circular at import-time
+        sse_publish(
+            {
+                "type": "deviceStatus",
+                "id": str(id),
+                "ipAddress": ip,
+                "status": status,
+                "rttMs": avg_rtt_ms,
+                "sent": sent,
+                "received": received,
+                "loss": loss_pct,
+                "timestamp": datetime.utcnow().isoformat() + "Z",
+            }
+        )
+    except Exception as e:
+        logger.debug("Failed to publish SSE event: %s", e)
+
+    return jsonify(payload), 200
